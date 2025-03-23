@@ -1,47 +1,11 @@
-import pygame
-import pygame_gui
-import random
-import sys
-import time
+from Container.imports_library import *
+from Displays.main_display import *
+from Displays.card_display import *
 import map
-from pygame_gui.ui_manager import UIManager
-from pygame_gui.elements import UIPanel, UIButton, UILabel, UITextEntryLine, UIScrollingContainer, UIStatusBar
 
 screenWidth, screenHeight = 1280, 720
-current_time = time.time()
-random.seed(current_time)
 clock = pygame.time.Clock()
 cell_size = 10
-
-# details
-class Details_Panel:
-    def __init__(self, ui_manager, weather):
-        self.ui_manager = ui_manager
-        self.weather = weather  # Link to the Weather class
-        self.details_panel = UIPanel(relative_rect=pygame.Rect((10, 10), (450, 200)), manager=self.ui_manager, starting_height=1)
-
-        self.last_update = pygame.time.get_ticks()
-        self._build()
-
-    def _build(self):
-        """Create UI elements for displaying weather details."""
-        self.current_temperature = UIButton(relative_rect=pygame.Rect((0, 20), (444, 40)), manager=self.ui_manager, container=self.details_panel, text="Current: --°C")
-        self.weather_type = UILabel(relative_rect=pygame.Rect((0, 65), (444, 20)), manager=self.ui_manager, container=self.details_panel, text="Weather: --")
-        self.wind_speeds = UILabel(relative_rect=pygame.Rect((0, 90), (444, 20)), manager=self.ui_manager, container=self.details_panel, text="Wind Speeds: -- km/h | Direction: --")
-        self.feels_like = UILabel(relative_rect=pygame.Rect((0, 110), (444, 20)), manager=self.ui_manager, container=self.details_panel, text="Feels Like: --°C")
-        self.pressure = UILabel(relative_rect=pygame.Rect((0, 130), (444, 20)),  manager=self.ui_manager, container=self.details_panel, text="Atmospheric Pressure: -- PA")
-        self.frostbite_risk = UILabel(relative_rect=pygame.Rect((0, 150), (444, 20)), manager=self.ui_manager, container=self.details_panel, text="Frostbite Risk: --")
-
-    def update(self):
-        """Fetch weather data and update the UI."""
-        self.weather.update()  # Update weather conditions
-
-        self.current_temperature.set_text(f"Current: {self.weather.current_temperature}°C")
-        self.weather_type.set_text(f"Weather: {self.weather.current_weather.capitalize()}")
-        self.wind_speeds.set_text(f"Wind Speeds: {self.weather.wind_speed} km/h | Direction: {self.weather.wind_direction}")
-        self.feels_like.set_text(f"Feels Like: {self.weather.feels_like}°C")
-        self.pressure.set_text(f"Atmospheric Pressure: {self.weather.pressure} PA")
-        self.frostbite_risk.set_text(f"Frostbite Risk: {self.weather.frostbite_risk}")
 
 # camera
 class Camera:
@@ -49,7 +13,7 @@ class Camera:
         self.x = x
         self.y = y
         self.size = size
-        self.color = (255, 0, 0)
+        self.color = pygame.Color("Red")
         self.edge_size = 50 # Size of edge area that triggers scrolling
         self.speed = 10
 
@@ -100,6 +64,13 @@ class App:
         self.weather = map.Weather()
         self.details_panel = Details_Panel(self.ui_manager, self.weather)
         self.ground = map.Ground(screenWidth, screenHeight, (cell_size,cell_size))
+        # display
+        self.detail_window = WeatherWindow(self.ui_manager, (screenWidth, screenHeight), self.details_panel)
+        # cards
+        self.PATH_BACK = os.path.join(os.getcwd(), "Assets/cardBack.png")
+        self.PATH_FRONT = os.path.join(os.getcwd(), "Assets/cardFront.png")
+        self.card_grid = GridSystem((screenWidth - 120, 120, 100, screenHeight - 130), grid_size=(1, 5))
+        self.cardDeck = CardDeck_Display(pos=(screenWidth - 130, 10), size=(100, 120), screen_size=(screenWidth, screenHeight), back_image_path=self.PATH_BACK, front_image_path=self.PATH_FRONT, grid_system=self.card_grid)
 
         # camera
         self.camera = Camera(0, 0)
@@ -116,15 +87,27 @@ class App:
                     self.running = False
                     sys.exit()
                 self.ui_manager.process_events(event)
+                # details
+                self.details_panel.handle_event(event, self.detail_window)
+                if self.detail_window.window_open:
+                    self.detail_window.handle_event(event)
+                    self.detail_window.update()
+                # cards
+                self.cardDeck.handle_event(event)
+
             # Draw elements
             self.ui_manager.update(time_delta)
             self.screen.blit(self.background_surface, (0, 0))
 
             self.ground.draw(self.screen, self.camera.x, self.camera.y)
             self.weather.draw(self.screen)
-
-            self.camera.draw(self.screen, self.camera.x, self.camera.y)
-            self.camera.move(mouse_pos, keys)
+            # Draw cards
+            self.cardDeck.draw(self.screen)
+            self.card_grid.draw(self.screen, debug=True)
+            # windows
+            if not self.detail_window.window_open:
+                self.camera.draw(self.screen, self.camera.x, self.camera.y)
+                self.camera.move(mouse_pos, keys)
 
             self.ui_manager.draw_ui(self.screen)
             # update
@@ -133,6 +116,8 @@ class App:
             self.clock.tick(64)
             pygame.display.flip()
             pygame.display.update()
+        pygame.quit()
+        sys.exit()
 
 # loop
 if __name__ == "__main__":

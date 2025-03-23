@@ -8,19 +8,42 @@ class Weather:
     def __init__(self):
         self.time = 0  # Represents in-game time (0-24 hours)
         self.day_length = 60  # Seconds for a full day
-        self.weather_types = ["clear", "overcast", "snowstorm", "fog", "rain storm"]
+        self.weather_types = ["clear", "overcast", "snowstorm", "fog", "methane rain", "nitrogen snow"]
+        self.frostbite_risk = random.choice(["Instantaneous", "Severe", "Critical"])
         self.current_weather = random.choice(self.weather_types)
         self.weather_timer = time.time() + random.randint(10, 30)  # Next weather change
         self.update_weather_values()
 
     def update_weather_values(self):
         """Generates weather values dynamically."""
-        self.current_temperature = round(random.uniform(-900, -880), 2)
-        self.wind_speed = round(random.uniform(180, 250), 2)
-        self.wind_direction = random.choice(["North", "North-East", "East", "South-East", "South"])
-        self.feels_like = round(self.current_temperature - random.uniform(5, 20), 2)
-        self.pressure = round(random.uniform(14, 16), 2)
-        self.frostbite_risk = random.choice(["Instantaneous", "Severe", "Critical"])
+        base_temp = -272.5
+        variation = 1.5
+        self.current_temperature = round(random.uniform(base_temp - variation, base_temp + variation), 2)
+        # Wind speeds
+        self.wind_speed = round(random.uniform(5, 30), 2)
+        self.wind_direction = random.choice(["North", "North-East", "East", "South-East", "South", "South-West", "West", "North-West"])
+
+        self.feels_like = round(max(self.current_temperature - (self.wind_speed / 20), -273.15), 2)
+        self.pressure = round(random.uniform(0.01, 0.05), 3)
+        # At these temperatures, exposure would be instantly fatal to humans
+        self.exposure_risk = "Instantly Fatal"
+
+        # Special effects for different weather types
+        if self.current_weather == "methane rain":
+            self.precipitation_type = "liquid methane"
+            self.visibility = round(random.uniform(5, 20), 1)
+        elif self.current_weather == "nitrogen snow":
+            self.precipitation_type = "solid nitrogen"
+            self.visibility = round(random.uniform(2, 10), 1)
+        elif self.current_weather == "snowstorm":
+            self.precipitation_type = "hydrogen ice crystals"
+            self.visibility = round(random.uniform(1, 5), 1)
+        elif self.current_weather == "fog":
+            self.precipitation_type = "helium mist"
+            self.visibility = round(random.uniform(3, 8), 1)
+        else:
+            self.precipitation_type = "none"
+            self.visibility = round(random.uniform(20, 100), 1)
 
     def get_lighting(self):
         """Returns a color overlay based on time of day."""
@@ -38,17 +61,25 @@ class Weather:
         screen.blit(overlay, (0, 0))
 
         if self.current_weather == "snowstorm":
-            for _ in range(50):
+            for _ in range(100):
                 x, y = random.randint(0, screen.get_width()), random.randint(0, screen.get_height())
-                pygame.draw.circle(screen, (255, 255, 255), (x, y), 2)
-        elif self.current_weather == "rain storm":
-            for _ in range(50):
+                pygame.draw.circle(screen, (220, 240, 255), (x, y), random.uniform(0.1, 0.3))
+        elif self.current_weather == "methane rain":
+            for _ in range(80):
                 x, y = random.randint(0, screen.get_width()), random.randint(0, screen.get_height())
-                pygame.draw.circle(screen, (0, 0, 255), (x, y), 3)
+                pygame.draw.line(screen, (100, 150, 220), (x, y), (x + random.uniform(-2, 2), y + 10), 2)
+        elif self.current_weather == "nitrogen snow":
+            for _ in range(70):
+                x, y = random.randint(0, screen.get_width()), random.randint(0, screen.get_height())
+                pygame.draw.circle(screen, (200, 225, 255), (x, y), random.uniform(0.2, 0.4))
         elif self.current_weather == "fog":
             fog_overlay = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
-            fog_overlay.fill((200, 200, 200, 100))
+            fog_overlay.fill((180, 180, 220, 120))
             screen.blit(fog_overlay, (0, 0))
+            # Add swirling fog particles
+            for _ in range(30):
+                x, y = random.randint(0, screen.get_width()), random.randint(0, screen.get_height())
+                pygame.draw.circle(screen, (200, 200, 240, 60), (x, y), random.uniform(0.10, 0.30))
 
     def update(self):
         """Update time and weather conditions."""
@@ -58,6 +89,19 @@ class Weather:
             self.current_weather = random.choice(self.weather_types)
             self.update_weather_values()  # Refresh weather data
             self.weather_timer = time.time() + random.randint(15, 45)
+
+    def get_weather_report(self):
+        """Returns a formatted string with current weather conditions."""
+        return {
+            "Temperature": self.current_temperature,
+            "Weather": self.current_weather.capitalize(),
+            "Wind": (self.wind_speed, self.wind_direction),
+            "Feels like": self.feels_like,
+            "Atmospheric pressure": self.pressure,
+            "Visibility":self.visibility,
+            "Exposure risk": self.exposure_risk,
+            "Precipitation": self.precipitation_type
+        }
 
 # ground
 class Segment:
